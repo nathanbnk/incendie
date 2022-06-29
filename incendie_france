@@ -1,0 +1,46 @@
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+from matplotlib.cm import ScalarMappable
+from matplotlib.lines import Line2D
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+from textwrap import wrap
+
+#base de donnée issue de Promethée > https://www.promethee.com/incendies
+data = pd.read_csv("/content/sample_data/liste_incendies_full.csv",skiprows=2,delimiter=";")
+#print(data)
+#data.columns
+summary_data = data.groupby(["Année"]).agg(
+    number_incendie = ("Année", "size"),
+    sum_metre_carre = ("Surface parcourue (m2)", "sum")
+).reset_index()
+
+
+summary_data["sum_hectar"] = summary_data["sum_metre_carre"]/10000
+#print(summary_data)
+
+
+#ax1_annuel = summary_data.plot.bar(y = "number_incendie", x = "Année",legend=False,xlabel="Temps (annuel)", ylabel="nombre d'incendies",
+#                    color="b",figsize=(12, 4)) #un seul plot     
+
+
+COLOR_TEMPERATURE = "#69b3a2"
+COLOR_PRICE = "#3399e6"
+
+fig, ax1_annuel = plt.subplots(figsize=(8, 8))
+ax2_annuel = ax1_annuel.twinx()
+
+ax1_annuel.bar(summary_data["Année"],summary_data["number_incendie"],color=COLOR_TEMPERATURE, edgecolor="black", alpha=0.4, width=1.0) #un seul plot    
+ax2_annuel.plot(summary_data["Année"],summary_data["sum_hectar"], color=COLOR_PRICE, lw=2)
+
+ax1_annuel.set_xlabel("Date")
+ax1_annuel.set_ylabel("Nombre d'incendie", fontsize=14,color=COLOR_TEMPERATURE)
+ax1_annuel.tick_params(axis="y",labelcolor=COLOR_TEMPERATURE)
+
+ax2_annuel.set_ylabel("Hectars brulés", fontsize=14, color=COLOR_PRICE)
+ax2_annuel.tick_params(axis="y",labelcolor=COLOR_PRICE)
+
+fig.autofmt_xdate()
+fig.suptitle("Nombre d'incendie et hectars brulés en France (1973-2020)", fontsize=20);
