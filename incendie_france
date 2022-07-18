@@ -1,21 +1,89 @@
-import matplotlib as mpl
-import matplotlib.pyplot as plt
+# Import the geopandas and geoplot libraries
+#!pip install geopandas
+#!pip install geoplot
+#!apt-get -V -y -qq install python-cartopy python3-cartopy
+#!pip uninstall shapely -y
+#!pip install shapely --no-binary shapely
+import geopandas as gpd
+import geoplot as gplt
+import geoplot.crs as gcrs
+import json  
+import requests
+import datetime
 import numpy as np
 import pandas as pd
+#import geoviews as gv
+import matplotlib.pyplot as plt
+# Set up the color sheme:
+import mapclassify as mc
+import folium
+import plotly.express as px
 
 from matplotlib.cm import ScalarMappable
 from matplotlib.lines import Line2D
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from textwrap import wrap
+from urllib.request import urlopen
+from pandas import json_normalize
+
+#data_map_france = gpd.read_file("https://raw.githubusercontent.com/holtzy/The-Python-Graph-Gallery/master/static/data/france.geojson")
+with urlopen('https://raw.githubusercontent.com/holtzy/The-Python-Graph-Gallery/master/static/data/france.geojson') as response:  
+    data_map_france = json.load(response)
+    
+#df2 = json_normalize(data_map_france['features']) #transformer le json en dataframe
+#data_map_france = data_map_france.sort_values(by=['nom'])
 
 #base de donnée issue de Promethée > https://www.promethee.com/incendies
-data = pd.read_csv("/content/sample_data/liste_incendies_full.csv",skiprows=2,delimiter=";")
-#print(data)
-#data.columns
-summary_data = data.groupby(["Année"]).agg(
-    number_incendie = ("Année", "size"),
+#data = pd.read_csv("/content/sample_data/liste_incendies_full.csv",skiprows=2,delimiter=";")
+data = pd.read_csv("/content/sample_data/incendies_france_2018_2020.csv",skiprows=2,delimiter=";")
+
+data["Alerte"] = pd.to_datetime(data["Alerte"]).apply(lambda t: t.replace(tzinfo=None)).dt.strftime('%Y-%m')
+
+#list_of_days = data["Alerte"].drop_duplicates()
+#print("liste des jours triès:", list_of_days)
+
+print(data)
+s_data = data.groupby(['Département','Alerte'],as_index=False).agg(
+    nombre_incendie_par_mois = ("Alerte", "size"),
     sum_metre_carre = ("Surface parcourue (m2)", "sum")
-).reset_index()
+    )
+
+s_data["hectar_brulé_par_mois"] = s_data["sum_metre_carre"]/10000
+
+#for day in list_of_days:
+  #print(day)
+#s_data = s_data[(s_data["Alerte"] == "2020-06")] 
+
+#methode avec geo_df:
+#fullData = s_data.merge(df2, left_on=['Département'], right_on=['code'])
+#fullData=fullData.sort_values(by='Alerte')
+#geo_df = gpd.GeoDataFrame(fullData)
+#fig, ax = plt.subplots(figsize=(12,9))
+#data_map_france.plot(ax=ax, alpha=0.4, color='grey')
+#geo_df.plot(column='number_incendie', ax=ax, cmap='inferno_r', legend=True)
+#print(fullData)
+
+#print(s_data)
+s_data=s_data.sort_values(by='Alerte')
+#s_data['Alerte'] = s_data['Alerte'].astype(str)
+print(s_data)
+
+
+fig = px.choropleth_mapbox(s_data, geojson=data_map_france,color="hectar_brulé_par_mois",locations="Département",featureidkey='properties.code',
+                           center={"lat":48.856613,"lon":2.352222},animation_frame='Alerte',hover_data=['nombre_incendie_par_mois'],
+                           color_continuous_scale="amp",title = "Hectars brulés par mois en France 2020",mapbox_style="carto-positron",zoom=5)
+
+fig.show()
+
+"""
+fig = px.choropleth(geo_df, geojson=geo_df.geometry, locations=geo_df.index, color='number_incendie',
+                           color_continuous_scale="inferno_r",
+                            projection="mercator",
+                            animation_frame='Alerte'
+                          )
+#fig.update_geos(fitbounds="locations", visible=True)
+fig.show()
+#####################################################################################
 
 
 summary_data["sum_hectar"] = summary_data["sum_metre_carre"]/10000
@@ -44,3 +112,4 @@ ax2_annuel.tick_params(axis="y",labelcolor=COLOR_PRICE)
 
 fig.autofmt_xdate()
 fig.suptitle("Nombre d'incendie et hectars brulés en France (1973-2020)", fontsize=20);
+"""
